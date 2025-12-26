@@ -6,19 +6,19 @@ from google.genai import types
 st.set_page_config(page_title="AI Tutor", page_icon="🎓")
 st.title("🎓 AI Tutor for Freshers")
 
-# 2. Get API Key safely - Changed key name to be specific to Gemini
+# 2. Get API Key safely from Streamlit Secrets
+# (We will set this up in the Streamlit Cloud dashboard later)
 try:
-    # Make sure this matches exactly what you typed in Streamlit Secrets
-    api_key = st.secrets["GEMINI_API_KEY"] 
+    api_key = st.secrets["GOOGLE_API_KEY"]
     client = genai.Client(api_key=api_key)
-except Exception as e:
-    st.error("Missing GEMINI_API_KEY in Streamlit Secrets.")
+except Exception:
+    st.error("Please set the GOOGLE_API_KEY in Streamlit Secrets.")
     st.stop()
 
 # 3. System Prompt
 SYSTEM_PROMPT = "You are an AI tutor for freshers. Explain concepts step-by-step using simple language."
 
-# 4. Initialize Chat History
+# 4. Initialize Chat History (Memory)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -29,29 +29,17 @@ for message in st.session_state.messages:
 
 # 6. Chat Input
 if prompt := st.chat_input("Ask me anything about coding..."):
+    # Add user message to history
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     # Get AI response
     with st.chat_message("assistant"):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt, # The SDK handles strings, but ensure the model name is correct
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    temperature=0.7 # Optional: adds more creativity to tutoring
-                )
-            )
-            
-            # Check if response has text (handles safety blocks)
-            if response.text:
-                output_text = response.text
-                st.markdown(output_text)
-                st.session_state.messages.append({"role": "assistant", "content": output_text})
-            else:
-                st.warning("The model did not return a response (it might have been filtered).")
-                
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
+        )
+        st.markdown(response.text)
+        st.session_state.messages.append({"role": "assistant", "content": response.text})
